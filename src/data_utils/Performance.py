@@ -22,15 +22,20 @@ def compute_trajectory_prediction_mse(args,ground_truth, predictions):
 		avg_mse = 0
 		cnt = 0
 		# compute average per trajectory
+		# tbp_len
+		# path from vel for vel
 		for t in range(len(pred)):
 			# real trajectory global frame
 			real_vel_global_frame = gt.vel_vec[t+args.prev_horizon+1:t+args.prediction_horizon+args.prev_horizon+1,:2]
 			real_traj_global_frame = sup.path_from_vel(initial_pos=np.array([0, 0]), pred_vel=real_vel_global_frame,
 			                                           dt=args.dt)
+			# pred_horizon = 10
 			vel_pred = np.zeros((args.prediction_horizon, args.output_dim))
 			error = 0
+			# [1,144]
 			pred_t = pred[t][0]
 			min_error = np.zeros((pred_t.shape[0]))
+			# 144 -> prediction_horizon*output_state_dim = 4*n_mixture
 			for sample_id in range(pred_t.shape[0]):
 				error = np.zeros((args.n_mixtures))
 				for mix_idx in range(args.n_mixtures):
@@ -89,6 +94,7 @@ def compute_trajectory_fde(args,ground_truth, predictions):
 
 				pred_vel_global_frame = vel_pred
 				traj_pred = sup.path_from_vel(initial_pos=np.array([0, 0]),pred_vel=np.squeeze(pred_vel_global_frame), dt=args.dt)
+				# error - last position
 				error = np.linalg.norm(real_traj_global_frame[-1, :] - traj_pred[-1, :])
 				avg_fde = (avg_fde*cnt+error)/(cnt+1)
 				cnt += 1

@@ -590,6 +590,8 @@ class NetworkModel():
 			self.test_cell_state_current_lstm_grid, self.test_hidden_state_current_lstm_grid = _current_state_lstm_grid
 			self.test_cell_state_current_lstm_ped, self.test_hidden_state_current_lstm_ped = _current_state_lstm_ped
 			self.test_cell_state_current_lstm_concat, self.test_hidden_state_current_lstm_concat = _current_state_lstm_concat
+		
+		# print(_model_prediction)
 
 		return _model_prediction, _likelihood
 

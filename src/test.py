@@ -120,11 +120,14 @@ data_prep = dhlstm.DataHandlerLSTM(args)
 map_params = os.path.join(args.data_path + args.scenario, 'map.json')
 with open(map_params) as json_file:
 	data = json.load(json_file)
+	print(data)
 map_args = {"file_name": data["file_name"],
             "resolution": data["resolution"],
             "map_size": np.array(data["map_size"]),
             "map_center": np.array(data["map_center"])}
+print(map_args)
 
+#use process data to load the map
 data_prep.processData(**map_args)
 if args.normalize_data:
 	data_prep.compute_min_max_values()
@@ -179,6 +182,8 @@ with tf.Session(config=config) as sess:
 			traj_id, freeze=test_args.freeze_other_agents)  # trajectory_set random.randint(0, len(data_prep.dataset) - 1)
 
 		trajectories.append(traj)
+		print("prev_horizon")
+		print(args.prev_horizon)
 		x_input_series = np.zeros([0, (args.prev_horizon + 1) * args.input_dim])
 		goal_input_series = np.zeros([0, 2])
 		grid_input_series = np.zeros(
@@ -204,9 +209,15 @@ with tf.Session(config=config) as sess:
 		if "grid" in args.model_name:
 			batch_ped_grid_backup = np.zeros_like(batch_grid)
 			data_prep.add_other_agents_to_grid(batch_ped_grid_backup, batch_x, [other_agents_pos])
+		print("step")
+		print(batch_x.shape[1])
+
+		#step is sequence length: tbp
 
 		for step in range(batch_x.shape[1]):
 			samples = []
+			# print(other_agents_info)
+
 			# Assemble feed dict for training
 			if "future" in args.others_info:
 				if step == 0:
@@ -229,6 +240,14 @@ with tf.Session(config=config) as sess:
 			        "other_agents_pos": [other_agents_pos]
 			        }
 			feed_dict_ = model.feed_test_dic(**dict)
+			print("other pose")
+			print(np.array(other_agents_pos).shape)
+			print(other_agents_pos[0].shape)
+			print("other info")
+			print(np.array(other_agents_info).shape)
+			print("batch_vel")
+			print(batch_vel.shape) #[:,step,:]
+			print(batch_vel[0,:,1])
 
 			# Append to logging series
 			x_input_series = np.append(x_input_series, batch_x[:, step, :], axis=0)
@@ -238,6 +257,8 @@ with tf.Session(config=config) as sess:
 			y_ground_truth_series = np.append(y_ground_truth_series, batch_target[:, step, :], axis=0)
 
 			y_model_pred, likelihood = model.predict(sess, feed_dict_, True)
+			# print("prediction out")
+			# print(y_model_pred.shape)
 
 			# Backup cell states for later analysis
 			cell_state_list.append(model.test_cell_state_current[0, :])
@@ -276,10 +297,17 @@ with tf.Session(config=config) as sess:
 
 			traj_likelihood.append(likelihood)
 			predictions.append(samples)
-
+		print("occupancy")
+		print(data_prep.agent_container.occupancy_grid.gridmap)
+		print("ground truth")
+		print(y_ground_truth_series.shape)
+		print("predictions")
+		print(np.array(predictions).shape)
 		all_predictions.append(predictions)
 		all_traj_likelihood.append(traj_likelihood)
-		input_list.append(x_input_series)
+		print("input series")
+		print(x_input_series.shape)
+		input_list.append(grid_input_series)
 		goal_list.append(goal_input_series)
 		grid_list.append(grid_input_series)
 		y_ground_truth_list.append(y_ground_truth_series)

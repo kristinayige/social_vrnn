@@ -193,7 +193,12 @@ class DataHandlerLSTM():
 		data_pickle = self.args.data_path + self.args.scenario + "/data" + str(self.args.prediction_horizon) + "_" + str(
 			self.args.truncated_backprop_length)+ "_" + str(
 			self.args.prev_horizon) + ".pickle"
+		#../data/real_world/ewap_dataset/seq_eth/data12_1_7.pickle
+		print("pickle")
+		print(data_pickle)
 		if os.path.isfile(data_pickle):
+			print("loading$$$$")
+			# load the trajectory data
 			self.loadTrajectoryData(data_pickle)
 		else:
 			if "real_world" in data_pickle:
@@ -815,6 +820,12 @@ class DataHandlerLSTM():
 			tmp_self = pkl.loads(self.file)#,encoding='latin1')
 		else:
 			tmp_self = pkl.load(self.file , encoding='latin1')
+		# inside: trajectory objects
+		# pose_vec: x, y, heading
+		print("tmp self")
+		print(tmp_self)
+		print(tmp_self["agent_container"].occupancy_grid.gridmap)
+		#trajectories and container
 		self.trajectory_set = tmp_self["trajectories"]
 		self.agent_container = tmp_self["agent_container"]
 
@@ -898,6 +909,7 @@ class DataHandlerLSTM():
 
 			if self.rotated_grid:
 				grid = sup.rotate_grid_around_center(grid, heading * 180 / math.pi)  # rotation in degrees
+			print(grid.shape)
 
 			batch_grid[batch_idx, tbp_step, :, :] = grid
 
@@ -1085,10 +1097,35 @@ class DataHandlerLSTM():
 		"""
 		id = self.trajectory_set[trajectory_idx][0]
 		traj = self.trajectory_set[trajectory_idx][1]
+		print("###########################SIZE###################")
+		print(self.trajectory_set[trajectory_idx])
+		# Random sampled trajectory
+		print("____________________________")
+		#sequence length, 3:x,y,heading
+		print("pose_vec")
+		print(traj.pose_vec)
+		print("time_vec")
+		print(traj.time_vec)
+		print("vel_vec")
+		print(traj.vel_vec)
+		print("goal")
+		print(traj.goal)
+		print(traj.goal.shape)
+		#pos x, pos y -> grid
+		#local occupancy grid
 		grid = self.agent_container.occupancy_grid.getSubmapByCoords(traj.pose_vec[0,0] * self.norm_const_x,
 																																 traj.pose_vec[0,1] * self.norm_const_y,
 																																 self.submap_width, self.submap_height)
+		# self.prev_horizon = args.prev_horizon previous sequence length
+		# self.output_sequence_length = args.prediction_horizon
+		# Length of predicted sequences (default=10)
 		sequence_length = min(max_sequence_length, traj.pose_vec.shape[0] - self.output_sequence_length-self.prev_horizon)
+		print("sequence")
+		print(sequence_length)
+		print("predict")
+		print(self.output_sequence_length)
+		print("prev horizon")
+		print(self.prev_horizon)
 		batch_x = np.zeros([1, sequence_length, (self.prev_horizon+1)*self.input_dim])
 		batch_pos_target = np.zeros([1, sequence_length, 2*self.args.prediction_horizon])
 		if "future" in self.args.others_info:
@@ -1103,17 +1140,22 @@ class DataHandlerLSTM():
 		batch_y = np.zeros([1, sequence_length, self.output_state_dim * self.output_sequence_length])
 		batch_pos = np.zeros([1, sequence_length, self.output_state_dim * self.output_sequence_length])
 		if self.args.others_info == "relative":
+			print("relative")
 			pedestrian_grid = np.zeros([1, sequence_length, self.pedestrian_vector_dim*self.args.n_other_agents])
 		elif "sequence" in self.args.others_info:
+			print("sequence")
 			pedestrian_grid = np.zeros(
 				[1, sequence_length, self.args.n_other_agents, self.pedestrian_vector_dim * self.prediction_horizon])
 		elif self.args.others_info == "prev_sequence":
+			print("ptrv")
 			pedestrian_grid = np.zeros(
 				[1, sequence_length, self.args.n_other_agents, self.pedestrian_vector_dim*(self.prev_horizon + 1)])
 		elif self.args.others_info == "sequence2":
+			print(2)
 			pedestrian_grid = np.zeros(
 				[1, sequence_length, self.args.n_other_agents, self.prediction_horizon,self.pedestrian_vector_dim])
 		elif self.args.others_info == "ped_grid":
+			print("grid")
 			pedestrian_grid = np.zeros([1, sequence_length,
 			                       int(np.ceil(self.submap_width / self.agent_container.occupancy_grid.resolution)),
 			                       int(np.ceil(self.submap_height / self.agent_container.occupancy_grid.resolution))])
@@ -1123,6 +1165,11 @@ class DataHandlerLSTM():
 
 		if freeze:
 			pedestrian_grid = pedestrian_grid*0.0
+		print("batch_x, look at dimension 1")
+		print(batch_vel.shape)
+		print("batch_goal")
+		print(batch_goal.shape)
+		print(batch_goal)
 
 		return batch_x, batch_vel, batch_pos,batch_goal, batch_grid, pedestrian_grid, batch_y, batch_pos_target, other_agents_pos, traj
 
